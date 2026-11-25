@@ -49,6 +49,18 @@ fun FocusScreen(
             )
         }
 
+        if (uiState.customPrivateDns) {
+            item {
+                Text(
+                    text = "Website blocking is paused while Android uses a custom Private DNS provider. " +
+                        "App blocking still works. To use website blocking, set Private DNS to Automatic " +
+                        "in Android settings and start a new focus session.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),

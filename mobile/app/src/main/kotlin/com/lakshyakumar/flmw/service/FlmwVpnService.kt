@@ -11,6 +11,8 @@ import android.net.VpnService
 import android.os.CancellationSignal
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.provider.Settings
+import android.system.OsConstants
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.lakshyakumar.flmw.FlmwApplication
@@ -47,7 +49,7 @@ class FlmwVpnService : VpnService() {
     private var expiryJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
+        if (intent?.action == ACTION_STOP || hasCustomPrivateDns(this)) {
             stopVpn()
             return START_NOT_STICKY
         }
@@ -91,6 +93,9 @@ class FlmwVpnService : VpnService() {
             .addAddress(VPN_ADDRESS, 32)
             .addDnsServer(VPN_DNS)
             .addRoute(VPN_DNS, 32)
+            // Only the synthetic IPv4 DNS address belongs in the tunnel.
+            // Keep IPv6 available on the underlying network for allowed apps.
+            .allowFamily(OsConstants.AF_INET6)
             .setBlocking(true)
 
         runCatching { builder.addDisallowedApplication(packageName) }
@@ -100,7 +105,9 @@ class FlmwVpnService : VpnService() {
 
         val repo = (application as FlmwApplication).repository
         expiryJob = serviceScope.launch(Dispatchers.Main) {
-            while (repo.focusState.value.isEffectivelyActive()) delay(1_000)
+            while (repo.focusState.value.isEffectivelyActive() && !hasCustomPrivateDns(this@FlmwVpnService)) {
+                delay(1_000)
+            }
             stopVpn()
         }
         loopJob = serviceScope.launch {
@@ -307,6 +314,11 @@ class FlmwVpnService : VpnService() {
         super.onDestroy()
     }
 
+    override fun onRevoke() {
+        // The user may select another VPN or revoke FLMW's VPN permission.
+        serviceScope.launch(Dispatchers.Main) { stopVpn() }
+    }
+
     companion object {
         const val ACTION_START = "com.lakshyakumar.flmw.VPN_START"
         const val ACTION_STOP = "com.lakshyakumar.flmw.VPN_STOP"
@@ -314,7 +326,21 @@ class FlmwVpnService : VpnService() {
         private const val VPN_ADDRESS = "10.111.222.1"
         private const val VPN_DNS = "10.111.222.2"
 
+        fun hasCustomPrivateDns(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+            // The configured mode is visible even while the provider is unreachable.
+            val mode = runCatching {
+                Settings.Global.getString(context.contentResolver, "private_dns_mode")
+            }.getOrNull()
+            if (mode != null) return mode == "hostname"
+
+            val connectivity = context.getSystemService(ConnectivityManager::class.java)
+            val network = connectivity.activeNetwork ?: return false
+            return !connectivity.getLinkProperties(network)?.privateDnsServerName.isNullOrEmpty()
+        }
+
         fun start(context: Context) {
+            if (hasCustomPrivateDns(context)) return
             val intent = Intent(context, FlmwVpnService::class.java).setAction(ACTION_START)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)

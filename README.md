@@ -4,11 +4,13 @@ flmw blocks distracting websites and apps during focus sessions. The desktop app
 
 ## Install on Android
 
-1. Use the signed **flmw-1.0.0.apk** from `dist/flmw-1.0.0.apk` on the release build machine, or from GitHub Releases once a maintainer publishes it.
+1. Use the signed **flmw-1.0.2.apk** from `dist/flmw-1.0.2.apk` on the release build machine, or from GitHub Releases once a maintainer publishes it.
 2. Transfer the APK to a phone running Android 8.0 or later and open it. If Android prompts you to allow installs from the app that opened the file, follow the prompt.
 3. Open flmw. Grant VPN access for website filtering and enable the accessibility service for app blocking. The Focus tab shows which permissions are needed.
 
 The package ID is `com.lakshyakumar.flmw`. If you installed a debug build with a different signature, uninstall it before installing the release. Uninstalling removes its local settings. Future releases can update this APK in place when signed with the same key and built with a higher version code.
+
+FLMW keeps IPv6 connectivity available during focus. If Android is set to a custom Private DNS provider, FLMW pauses its website VPN so Android can keep using the configured resolver. App blocking continues through the accessibility service. To use website blocking, set Private DNS to **Automatic** in Android settings and start a new focus session. Website and app blocklists are separate. If an app's own domain is on the website blocklist, the app can still open but may fail to load.
 
 ## Run on Windows
 
@@ -47,8 +49,8 @@ For command line builds, run `gradle assembleRelease` inside `mobile/`. This gen
 
 ```text
 zipalign -P 16 -f 4 app-release-unsigned.apk flmw-aligned.apk
-apksigner sign --ks /path/to/release-keystore.p12 --ks-key-alias flmw-release --out flmw-1.0.0.apk flmw-aligned.apk
-apksigner verify --verbose flmw-1.0.0.apk
+apksigner sign --ks /path/to/release-keystore.p12 --ks-key-alias flmw-release --out flmw-1.0.2.apk flmw-aligned.apk
+apksigner verify --verbose flmw-1.0.2.apk
 ```
 
 Attach the signed APK to the matching GitHub Release. Keep the release key and password backed up securely outside the repo. Git tracks source and build configuration. APKs, signing keys, executables, and local build caches are ignored.

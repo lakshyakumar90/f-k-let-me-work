@@ -32,7 +32,8 @@ data class FlmwUiState(
     val focus: FocusState = FocusState(),
     val nowMillis: Long = System.currentTimeMillis(),
     val installedApps: List<InstalledAppItem> = emptyList(),
-    val permissions: PermissionStatus = PermissionStatus()
+    val permissions: PermissionStatus = PermissionStatus(),
+    val customPrivateDns: Boolean = false
 )
 
 class FocusViewModel(
@@ -54,12 +55,17 @@ class FocusViewModel(
             focus = focus,
             nowMillis = now,
             installedApps = apps,
-            permissions = perms
+            permissions = perms,
+            customPrivateDns = FlmwVpnService.hasCustomPrivateDns(appContext)
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = FlmwUiState(focus = repository.focusState.value, permissions = readPermissions())
+        initialValue = FlmwUiState(
+            focus = repository.focusState.value,
+            permissions = permissionsFlow.value,
+            customPrivateDns = FlmwVpnService.hasCustomPrivateDns(appContext)
+        )
     )
 
     init {
