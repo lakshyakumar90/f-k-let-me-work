@@ -18,7 +18,9 @@ Install Go 1.26 or later. In the repository root, build with:
 go build -o flmw.exe ./cmd/flmw
 ```
 
-Run the following from Administrator PowerShell so the daemon can edit the Windows hosts file:
+Double-click `flmw.exe` in File Explorer and approve the Windows administrator prompt. flmw runs in the background and opens the embedded HTML dashboard in your default browser at [http://127.0.0.1:8787/](http://127.0.0.1:8787/). Double-click it again to reopen the dashboard. Use **Stop focus** in the dashboard to release the website and app blocks.
+
+To run the daemon in a terminal instead, open Administrator PowerShell and run:
 
 ```powershell
 $env:FLMW_HTTP_PORT = '8787'

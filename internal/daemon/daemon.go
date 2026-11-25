@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -49,6 +50,12 @@ func New(opt Options) (*Daemon, error) {
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
+	listener, err := net.Listen("tcp", d.opt.HTTPAddr)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+
 	handler := d.routes()
 	httpSrv := &http.Server{Addr: d.opt.HTTPAddr, Handler: handler}
 	httpsSrv := &http.Server{
@@ -61,7 +68,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 
 	go func() {
-		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpSrv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Printf("http server error: %v", err)
 		}
 	}()

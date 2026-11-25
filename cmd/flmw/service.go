@@ -54,11 +54,14 @@ func runDaemon() error {
 		}
 		return svc.Run()
 	}
+	return runForegroundDaemon(httpAddr())
+}
 
+func runForegroundDaemon(addr string) error {
 	// On Windows, closing the console delivers SIGTERM rather than Ctrl+C.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	d, err := daemon.New(daemon.Options{DataDir: defaultDataDir(), HTTPAddr: httpAddr()})
+	d, err := daemon.New(daemon.Options{DataDir: defaultDataDir(), HTTPAddr: addr})
 	if err != nil {
 		return err
 	}

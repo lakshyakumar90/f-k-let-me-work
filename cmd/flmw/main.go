@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/lakshyakumar90/fuck-let-me-work/internal/api"
 	"github.com/lakshyakumar90/fuck-let-me-work/internal/hosts"
@@ -16,6 +18,37 @@ import (
 )
 
 var apiBase = "http://" + httpAddr()
+
+const dashboardAddr = "127.0.0.1:8787"
+
+var dashboardProbe = http.Client{
+	Timeout: 400 * time.Millisecond,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
+func dashboardReady(base string) bool {
+	resp, err := dashboardProbe.Get(base + "/api/status")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	var status api.StatusResponse
+	return resp.StatusCode == http.StatusOK &&
+		json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&status) == nil &&
+		status.Author == "Lakshya Kumar"
+}
+
+func currentAPIBase() string {
+	if runtime.GOOS == "windows" && os.Getenv("FLMW_HTTP_PORT") == "" {
+		base := "http://" + dashboardAddr
+		if dashboardReady(base) {
+			return base
+		}
+	}
+	return apiBase
+}
 
 func httpAddr() string {
 	if port := os.Getenv("FLMW_HTTP_PORT"); port != "" {
@@ -26,6 +59,9 @@ func httpAddr() string {
 
 func main() {
 	if len(os.Args) < 2 {
+		if launchDashboard() {
+			return
+		}
 		printUsage()
 		os.Exit(1)
 	}
@@ -51,13 +87,17 @@ func main() {
 	case "schedule":
 		handleScheduleCmd(args)
 	case "open":
-		tray.OpenBrowser(apiBase)
+		tray.OpenBrowser(currentAPIBase())
 	case "tray":
-		tray.Run()
+		tray.Run(currentAPIBase())
 	case "skill":
 		fmt.Print(skill.Content)
 	case "daemon":
 		must(runDaemon())
+	case "dashboard-daemon":
+		if !launchWorker(args) {
+			must(fmt.Errorf("dashboard launcher is only available on Windows"))
+		}
 	case "restore-hosts":
 		must(hosts.Apply("", nil))
 		fmt.Println("FLMW website redirects cleared.")
@@ -140,7 +180,7 @@ func mustCall(method, path string, payload any, asJSON bool) {
 		must(err)
 		body = bytes.NewReader(b)
 	}
-	req, err := http.NewRequest(method, apiBase+path, body)
+	req, err := http.NewRequest(method, currentAPIBase()+path, body)
 	must(err)
 	req.Header.Set("X-FLMW", "1")
 	if payload != nil {

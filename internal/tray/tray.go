@@ -13,13 +13,11 @@ import (
 	"github.com/lakshyakumar90/fuck-let-me-work/internal/api"
 )
 
-const baseURL = "http://127.0.0.1"
-
-func Run() {
-	systray.Run(onReady, func() {})
+func Run(baseURL string) {
+	systray.Run(func() { onReady(baseURL) }, func() {})
 }
 
-func onReady() {
+func onReady(baseURL string) {
 	systray.SetTitle("flmw")
 	systray.SetTooltip("flmw — Focus Blocker (Lakshya Kumar)")
 
@@ -34,7 +32,7 @@ func onReady() {
 	systray.AddSeparator()
 
 	mStop := systray.AddMenuItem("Stop focus", "End current focus session")
-	mOpen := systray.AddMenuItem("Open control panel", "Open http://127.0.0.1")
+	mOpen := systray.AddMenuItem("Open control panel", "Open "+baseURL)
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit tray", "Close tray indicator")
 
@@ -42,7 +40,7 @@ func onReady() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 		for {
-			if st, err := fetchStatus(); err == nil {
+			if st, err := fetchStatus(baseURL); err == nil {
 				if st.Active {
 					systray.SetTitle("● flmw")
 					mStatus.SetTitle("Focus: Active")
@@ -59,15 +57,15 @@ func onReady() {
 		for {
 			select {
 			case <-m25.ClickedCh:
-				postFocus("25m")
+				postFocus(baseURL, "25m")
 			case <-m50.ClickedCh:
-				postFocus("50m")
+				postFocus(baseURL, "50m")
 			case <-m2h.ClickedCh:
-				postFocus("2h")
+				postFocus(baseURL, "2h")
 			case <-mInf.ClickedCh:
-				postFocus("")
+				postFocus(baseURL, "")
 			case <-mStop.ClickedCh:
-				stopFocus()
+				stopFocus(baseURL)
 			case <-mOpen.ClickedCh:
 				OpenBrowser(baseURL)
 			case <-mQuit.ClickedCh:
@@ -78,7 +76,7 @@ func onReady() {
 	}()
 }
 
-func fetchStatus() (*api.StatusResponse, error) {
+func fetchStatus(baseURL string) (*api.StatusResponse, error) {
 	resp, err := http.Get(baseURL + "/api/status")
 	if err != nil {
 		return nil, err
@@ -88,7 +86,7 @@ func fetchStatus() (*api.StatusResponse, error) {
 	return &st, json.NewDecoder(resp.Body).Decode(&st)
 }
 
-func postFocus(dur string) {
+func postFocus(baseURL, dur string) {
 	body, _ := json.Marshal(api.FocusRequest{Duration: dur})
 	req, _ := http.NewRequest(http.MethodPost, baseURL+"/api/focus", bytes.NewReader(body))
 	req.Header.Set("X-FLMW", "1")
@@ -96,7 +94,7 @@ func postFocus(dur string) {
 	_, _ = http.DefaultClient.Do(req)
 }
 
-func stopFocus() {
+func stopFocus(baseURL string) {
 	req, _ := http.NewRequest(http.MethodDelete, baseURL+"/api/focus", nil)
 	req.Header.Set("X-FLMW", "1")
 	_, _ = http.DefaultClient.Do(req)
