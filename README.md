@@ -4,7 +4,7 @@ flmw blocks distracting websites and apps during focus sessions. The desktop app
 
 ## Install on Android
 
-1. Use the signed **flmw-1.0.2.apk** from `dist/flmw-1.0.2.apk` on the release build machine, or from GitHub Releases once a maintainer publishes it.
+1. [Download the signed Android APK (1.0.2)](https://github.com/lakshyakumar90/f-k-let-me-work/releases/download/v1.0.2/flmw-1.0.2.apk). For future updates, check the [latest release](https://github.com/lakshyakumar90/f-k-let-me-work/releases/latest).
 2. Transfer the APK to a phone running Android 8.0 or later and open it. If Android prompts you to allow installs from the app that opened the file, follow the prompt.
 3. Open flmw. Grant VPN access for website filtering and enable the accessibility service for app blocking. The Focus tab shows which permissions are needed.
 
