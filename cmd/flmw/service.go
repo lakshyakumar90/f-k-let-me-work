@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/kardianos/service"
 	"github.com/lakshyakumar90/fuck-let-me-work/internal/daemon"
@@ -42,6 +44,25 @@ func (p *program) Stop(s service.Service) error {
 		<-p.done
 	}
 	return nil
+}
+
+func runDaemon() error {
+	if !service.Interactive() {
+		svc, err := newService()
+		if err != nil {
+			return err
+		}
+		return svc.Run()
+	}
+
+	// On Windows, closing the console delivers SIGTERM rather than Ctrl+C.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	d, err := daemon.New(daemon.Options{DataDir: defaultDataDir(), HTTPAddr: httpAddr()})
+	if err != nil {
+		return err
+	}
+	return d.Run(ctx)
 }
 
 func newService() (service.Service, error) {

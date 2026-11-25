@@ -29,6 +29,8 @@ Leave that terminal open and visit [the dashboard](http://127.0.0.1:8787/). The 
 
 The HTTP port defaults to 80. Use 8787 for the dashboard if IIS or another server owns port 80. Browser traffic to blocked sites still uses the standard web ports. Your browser may show a certificate warning for blocked HTTPS sites.
 
+Use **Ctrl+C** to stop the foreground daemon and remove its website redirects. If a forced stop or power loss leaves sites blocked, make sure the daemon is stopped, then run `.\flmw.exe restore-hosts` from Administrator PowerShell to remove only the FLMW-managed entries.
+
 ## Run on macOS or Linux
 
 Build with `go build -o flmw ./cmd/flmw`, run `sudo ./flmw daemon`, and open [the dashboard](http://127.0.0.1/). Use `sudo ./flmw install` to register the background service and `sudo ./flmw uninstall` to remove it. Linux builds require the system development libraries for the tray backend.

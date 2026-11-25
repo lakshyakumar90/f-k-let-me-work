@@ -27,6 +27,7 @@ type Daemon struct {
 	certPool *certs.Store
 	tickMu   sync.Mutex
 	lastOn   bool
+	stopping bool
 }
 
 func New(opt Options) (*Daemon, error) {
@@ -44,7 +45,7 @@ func New(opt Options) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Daemon{opt: opt, manager: mgr, certPool: cp}, nil
+	return &Daemon{opt: opt, manager: mgr, certPool: cp, lastOn: true}, nil
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
@@ -77,12 +78,16 @@ func (d *Daemon) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			d.tickMu.Lock()
+			d.stopping = true
+			err := hosts.Apply(d.opt.HostsPath, nil)
+			d.tickMu.Unlock()
+
 			shutCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			_ = httpSrv.Shutdown(shutCtx)
 			_ = httpsSrv.Shutdown(shutCtx)
-			_ = hosts.Apply(d.opt.HostsPath, nil)
-			return nil
+			return err
 		case <-ticker.C:
 			d.tick()
 		}
@@ -93,13 +98,21 @@ func (d *Daemon) tick() {
 	d.tickMu.Lock()
 	defer d.tickMu.Unlock()
 
+	if d.stopping {
+		return
+	}
 	st := d.manager.Status()
 	if st.Active {
-		_ = hosts.Apply(d.opt.HostsPath, st.Sites)
+		if err := hosts.Apply(d.opt.HostsPath, st.Sites); err != nil {
+			log.Printf("apply website blocklist: %v", err)
+		}
 		_ = apps.TerminateBlocked(st.Apps)
 		d.lastOn = true
 	} else if d.lastOn {
-		_ = hosts.Apply(d.opt.HostsPath, nil)
+		if err := hosts.Apply(d.opt.HostsPath, nil); err != nil {
+			log.Printf("clear website blocklist: %v", err)
+			return
+		}
 		d.lastOn = false
 	}
 }

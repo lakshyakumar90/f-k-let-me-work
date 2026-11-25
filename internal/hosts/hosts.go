@@ -30,6 +30,12 @@ func Apply(path string, domains []string) error {
 	}
 
 	cleaned := stripManagedBlock(string(raw))
+	if len(domains) == 0 {
+		if cleaned == string(raw) {
+			return nil
+		}
+		return writeAndFlush(path, cleaned)
+	}
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(cleaned, "\r\n"))
 	b.WriteString("\n")
@@ -47,7 +53,14 @@ func Apply(path string, domains []string) error {
 		b.WriteString(endMarker + "\n")
 	}
 
-	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+	if b.String() == string(raw) {
+		return nil
+	}
+	return writeAndFlush(path, b.String())
+}
+
+func writeAndFlush(path, content string) error {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return err
 	}
 	FlushDNS()

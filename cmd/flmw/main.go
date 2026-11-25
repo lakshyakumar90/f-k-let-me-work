@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lakshyakumar90/fuck-let-me-work/internal/api"
+	"github.com/lakshyakumar90/fuck-let-me-work/internal/hosts"
 	"github.com/lakshyakumar90/fuck-let-me-work/internal/tray"
 	"github.com/lakshyakumar90/fuck-let-me-work/skill"
 )
@@ -56,9 +57,10 @@ func main() {
 	case "skill":
 		fmt.Print(skill.Content)
 	case "daemon":
-		svc, err := newService()
-		must(err)
-		must(svc.Run())
+		must(runDaemon())
+	case "restore-hosts":
+		must(hosts.Apply("", nil))
+		fmt.Println("FLMW website redirects cleared.")
 	case "install":
 		svc, err := newService()
 		must(err)
@@ -188,5 +190,5 @@ func must(err error) {
 
 func printUsage() {
 	fmt.Println("flmw — Focus & Distraction Blocker (Lakshya Kumar)")
-	fmt.Println("Usage: flmw <on [dur]|off|status [--json]|site|app|schedule|open|tray|skill|install|uninstall|daemon>")
+	fmt.Println("Usage: flmw <on [dur]|off|status [--json]|site|app|schedule|open|tray|skill|install|uninstall|daemon|restore-hosts>")
 }
