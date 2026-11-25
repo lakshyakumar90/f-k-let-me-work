@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>flmw — Focus Blocker · Lakshya Kumar</title>
+  <style>
+    :root {
+      --bg: #f3efe6; --surface: #fbf9f4; --surface-2: #ede7da;
+      --ink: #1b1a17; --muted: #6d675c; --border: #d9d2c3;
+      --accent: #d9480f; --accent-soft: rgba(217, 72, 15, 0.12); --ok: #2b7a4b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161512; --surface: #1e1c18; --surface-2: #27241f;
+        --ink: #ece6da; --muted: #9a9284; --border: #34312b;
+        --accent: #ff7a3d; --accent-soft: rgba(255, 122, 61, 0.14); --ok: #48b878;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 36px 20px 64px;
+      background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 620px; margin: 0 auto; }
+    h1, h2 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-weight: 400; margin: 0; }
+    h1 { font-size: 2.75rem; line-height: 1.08; }
+    h2 { font-size: 1.45rem; margin-bottom: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .muted { color: var(--muted); }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 22px; margin-bottom: 18px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    button {
+      cursor: pointer; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 500;
+      border: 1px solid var(--border); background: transparent; color: var(--ink);
+    }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    input, select {
+      flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+      font-size: 13px;
+    }
+    ul { list-style: none; padding: 0; margin: 12px 0 0; }
+    li {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-top: 1px solid var(--border); font-size: 13px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--muted); }
+    .dot.on { background: var(--accent); }
+    .hidden { display: none !important; }
+    .center { text-align: center; padding-top: 12vh; }
+    .friction {
+      margin-top: 48px; border: 0; color: var(--muted); font-size: 12px;
+      text-decoration: underline; text-underline-offset: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Control Panel -->
+    <section id="panel" class="hidden">
+      <div class="between" style="margin-bottom:24px;">
+        <div class="row"><span id="dot" class="dot"></span><strong class="mono">flmw</strong></div>
+        <span class="muted" style="font-size:12px;">Lakshya Kumar</span>
+      </div>
+
+      <div class="card">
+        <div class="between">
+          <div>
+            <h1 id="statusTitle">Standby.</h1>
+            <p id="statusSub" class="muted" style="margin:6px 0 0; font-size:13px;">Start a focus block to lock out distractions.</p>
+          </div>
+          <div id="countdown" class="mono" style="font-size:1.8rem; font-weight:600;"></div>
+        </div>
+        <div id="startBtns" class="row" style="margin-top:20px;">
+          <button class="primary" onclick="startFocus('25m')">25m</button>
+          <button onclick="startFocus('50m')">50m</button>
+          <button onclick="startFocus('2h')">2h</button>
+          <button onclick="startFocus('')">Until I stop</button>
+        </div>
+        <div id="stopBtns" class="row hidden" style="margin-top:20px;">
+          <button class="primary" onclick="stopFocus()">Stop focus</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Blocked Sites</h2>
+        <form class="row" onsubmit="addSite(event)">
+          <input id="siteIn" class="mono" placeholder="x.com" />
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <ul id="siteList"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Blocked Apps</h2>
+        <form class="row" onsubmit="addApp(event)">
+          <select id="appIn" aria-label="Choose an app" required disabled><option value="">Loading apps…</option></select>
+          <button type="button" class="ghost" onclick="loadApps()">Refresh apps</button>
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <ul id="appList"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Schedules</h2>
+        <form class="row" onsubmit="addSchedule(event)">
+          <input id="cronIn" class="mono" placeholder="0 9 * * 1-5" />
+          <input id="durIn" class="mono" placeholder="2h" style="max-width:110px;" />
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <ul id="schedList"></ul>
+      </div>
+    </section>
+
+    <!-- Active Block Page -->
+    <section id="blocked" class="hidden center">
+      <p class="mono muted" id="blockedHost" style="font-size:13px;"></p>
+      <h1 style="font-size:4.2rem; margin:10px 0;">Not now.</h1>
+      <p class="muted" id="blockedSub">Focus mode is active. Get back to work.</p>
+      <div style="margin-top:24px;">
+        <button class="primary" onclick="window.history.length > 1 ? history.back() : window.close()">Back to work</button>
+      </div>
+      <button class="friction" onclick="stopFocus()">
+        Okay, unblock me. I really want to do it. I'm free from work. Turn it off.
+      </button>
+    </section>
+
+    <!-- Tab Release Page -->
+    <section id="released" class="hidden center">
+      <h1 style="font-size:4.2rem; margin:10px 0;">Free.</h1>
+      <p class="muted">Focus ended. Reloading every 2 seconds until DNS resolves back to the live site...</p>
+    </section>
+  </div>
+
+  <script>
+    const isLocalPanel = ['127.0.0.1', 'localhost', '::1'].includes(location.hostname);
+    let lastState = null;
+
+    async function apiCall(method, url, body) {
+      const res = await fetch(url, {
+        method,
+        headers: { 'X-FLMW': '1', 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      return res.json();
+    }
+
+    async function refresh() {
+      const st = await apiCall('GET', '/api/status');
+      lastState = st;
+
+      if (!isLocalPanel) {
+        if (st.active) {
+          document.getElementById('blocked').classList.remove('hidden');
+          document.getElementById('released').classList.add('hidden');
+          document.getElementById('blockedHost').textContent = location.hostname;
+        } else {
+          document.getElementById('blocked').classList.add('hidden');
+          document.getElementById('released').classList.remove('hidden');
+          setTimeout(() => location.reload(), 2000);
+        }
+        return;
+      }
+
+      document.getElementById('panel').classList.remove('hidden');
+      document.getElementById('dot').classList.toggle('on', st.active);
+      document.getElementById('statusTitle').textContent = st.active ? 'Locked in.' : 'Standby.';
+      document.getElementById('statusSub').textContent = st.active
+        ? `Blocking ${(st.sites || []).length} sites and ${(st.apps || []).length} apps.`
+        : 'Start a focus block to lock out distractions.';
+      document.getElementById('startBtns').classList.toggle('hidden', st.active);
+      document.getElementById('stopBtns').classList.toggle('hidden', !st.active);
+
+      const cd = document.getElementById('countdown');
+      if (st.active && st.endsAt) {
+        const rem = Math.max(0, Math.ceil((new Date(st.endsAt) - Date.now()) / 1000));
+        const m = String(Math.floor(rem / 60)).padStart(2, '0');
+        const s = String(rem % 60).padStart(2, '0');
+        cd.textContent = `${m}:${s}`;
+      } else {
+        cd.textContent = st.active ? '∞' : '';
+      }
+
+      document.getElementById('siteList').innerHTML = (st.sites || []).map(s =>
+        `<li><span class="mono">${s}</span><button onclick="rmSite('${s}')">Remove</button></li>`
+      ).join('');
+      document.getElementById('appList').innerHTML = (st.apps || []).map(a =>
+        `<li><span class="mono">${a}</span><button onclick="rmApp('${a}')">Remove</button></li>`
+      ).join('');
+      document.getElementById('schedList').innerHTML = (st.schedules || []).map(sc =>
+        `<li><span class="mono">${sc.cron} · ${sc.duration}</span><button onclick="rmSchedule('${sc.id}')">Remove</button></li>`
+      ).join('');
+    }
+
+    async function startFocus(duration) { await apiCall('POST', '/api/focus', { duration }); refresh(); }
+    async function stopFocus() { await apiCall('DELETE', '/api/focus'); refresh(); }
+    async function addSite(e) { e.preventDefault(); const v = siteIn.value.trim(); if (!v) return; siteIn.value = ''; await apiCall('POST', '/api/sites', { domain: v }); refresh(); }
+    async function rmSite(d) { await apiCall('DELETE', '/api/sites/' + encodeURIComponent(d)); refresh(); }
+    async function addApp(e) { e.preventDefault(); const v = appIn.value.trim(); if (!v) return; appIn.value = ''; await apiCall('POST', '/api/apps', { name: v }); refresh(); }
+    async function rmApp(a) { await apiCall('DELETE', '/api/apps/' + encodeURIComponent(a)); refresh(); }
+    async function addSchedule(e) { e.preventDefault(); const c = cronIn.value.trim(), d = durIn.value.trim(); if (!c || !d) return; cronIn.value = ''; durIn.value = ''; await apiCall('POST', '/api/schedules', { cron: c, duration: d }); refresh(); }
+    async function rmSchedule(id) { await apiCall('DELETE', '/api/schedules/' + encodeURIComponent(id)); refresh(); }
+
+    async function loadApps() {
+      const picker = document.getElementById('appIn');
+      picker.disabled = true;
+      picker.replaceChildren(new Option('Loading apps…', ''));
+      try {
+        const apps = await apiCall('GET', '/api/app-choices');
+        if (!Array.isArray(apps)) throw new Error('App list unavailable');
+        picker.replaceChildren(new Option(apps.length ? 'Choose an app…' : 'No apps found', ''),
+          ...apps.map(app => new Option(app.label, app.name)));
+        picker.disabled = !apps.length;
+      } catch {
+        picker.replaceChildren(new Option('Could not load apps', ''));
+      }
+    }
+    if (isLocalPanel) loadApps();
+    refresh();
+    setInterval(refresh, 1000);
+  </script>
+</body>
+</html>

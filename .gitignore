@@ -1,0 +1,15 @@
+/flmw
+/*.exe
+/dist/
+**/.gradle/
+**/.kotlin/
+**/.idea/
+**/build/
+**/local.properties
+*.iml
+*.apk
+*.aab
+*.jks
+*.keystore
+*.p12
+*.dpapi

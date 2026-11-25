@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">flmw</string>
+    <string name="accessibility_description">Detects when a blocked app opens during an active flmw focus session and displays the Not now. shield screen.</string>
+    <string name="qs_tile_label">flmw Focus</string>
+</resources>
